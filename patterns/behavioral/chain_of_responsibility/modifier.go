@@ -1,28 +1,12 @@
 package chain_of_responsibility
 
-import "fmt"
-
 type CreatureModifier struct {
+	game     *Game
 	creature *Creature
-	next     Modifier
 }
 
-func NewCreatureModifier(creature *Creature) *CreatureModifier {
-	return &CreatureModifier{creature: creature}
-}
-
-func (c *CreatureModifier) Add(m Modifier) {
-	if c.next != nil {
-		c.next.Add(m)
-	} else {
-		c.next = m
-	}
-}
-
-func (c *CreatureModifier) Apply() {
-	if c.next != nil {
-		c.next.Apply()
-	}
+func NewCreatureModifier(game *Game, creature *Creature) *CreatureModifier {
+	return &CreatureModifier{game: game, creature: creature}
 }
 
 // DoubleAttackModifier doubles the attack of a creature
@@ -30,43 +14,40 @@ type DoubleAttackModifier struct {
 	CreatureModifier
 }
 
-func NewDoubleAttackModifier(c *Creature) *DoubleAttackModifier {
-	return &DoubleAttackModifier{CreatureModifier: *NewCreatureModifier(c)}
+func NewDoubleAttackModifier(g *Game, c *Creature) *DoubleAttackModifier {
+	d := &DoubleAttackModifier{*NewCreatureModifier(g, c)}
+	g.Subscribe(d)
+	return d
 }
 
-func (d *DoubleAttackModifier) Apply() {
-	fmt.Printf("Doubling %s's attack\n", d.creature.Name)
-	d.creature.Attack *= 2
-	d.CreatureModifier.Apply()
+func (d *DoubleAttackModifier) Handle(q *Query) {
+	if q.CreatureName == d.creature.Name && q.WhatToQuery == Attack {
+		q.Value *= 2
+	}
 }
 
-// IncreaseDefenseModifier increases the defense of a creature
+func (d *DoubleAttackModifier) Close() error {
+	d.game.Unsubscribe(d)
+	return nil
+}
+
 type IncreaseDefenseModifier struct {
 	CreatureModifier
 }
 
-func NewIncreaseDefenseModifier(c *Creature) *IncreaseDefenseModifier {
-	return &IncreaseDefenseModifier{CreatureModifier: *NewCreatureModifier(c)}
+func NewIncreaseDefenseModifier(g *Game, c *Creature) *IncreaseDefenseModifier {
+	idm := &IncreaseDefenseModifier{*NewCreatureModifier(g, c)}
+	idm.game.Subscribe(idm)
+	return idm
 }
 
-func (i *IncreaseDefenseModifier) Apply() {
-	if i.creature.Attack <= 2 {
-		fmt.Printf("Increasing %s's defense\n", i.creature.Name)
-		i.creature.Defense++
+func (i *IncreaseDefenseModifier) Handle(q *Query) {
+	if q.CreatureName == i.creature.Name && q.WhatToQuery == Defense {
+		q.Value++
 	}
-	i.CreatureModifier.Apply()
 }
 
-// NoBonusesModifier disables all the other modifiers
-type NoBonusesModifier struct {
-	CreatureModifier
-}
-
-func NewNoBonusesModifier(c *Creature) *NoBonusesModifier {
-	return &NoBonusesModifier{CreatureModifier{creature: c}}
-}
-
-func (n *NoBonusesModifier) Apply() {
-	// do not call others modifier
-	fmt.Printf("Disabling modifiers for %s\n", n.creature.Name)
+func (i *IncreaseDefenseModifier) Close() error {
+	i.game.Unsubscribe(i)
+	return nil
 }

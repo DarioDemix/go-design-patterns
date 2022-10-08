@@ -1,6 +1,9 @@
 package chain_of_responsibility
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 /*
 Command Query Separation
@@ -19,19 +22,17 @@ type ChainOfResponsibility struct {
 }
 
 func (c *ChainOfResponsibility) Demo() {
-	fmt.Println("Chain Of Responsibility demo:")
-
-	goblin := NewCreature("Goblin", 1, 1)
+	game := &Game{sync.Map{}}
+	goblin := NewCreature(game, "Strong Goblin", 2, 2)
 	fmt.Println(goblin.String())
 
-	root := NewCreatureModifier(goblin)
+	dam := NewDoubleAttackModifier(game, goblin)
+	fmt.Println(goblin.String())
+	_ = dam.Close()
 
-	root.Add(NewNoBonusesModifier(goblin))
+	idm := NewIncreaseDefenseModifier(game, goblin)
+	fmt.Println(goblin.String())
+	_ = idm.Close()
 
-	root.Add(NewDoubleAttackModifier(goblin))
-	root.Add(NewIncreaseDefenseModifier(goblin))
-	root.Add(NewDoubleAttackModifier(goblin))
-
-	root.Apply()
 	fmt.Println(goblin.String())
 }
